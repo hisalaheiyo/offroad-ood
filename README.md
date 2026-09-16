@@ -1,51 +1,53 @@
 # OffRoad-OOD
 
-**Benchmarking and Terrain-Conditional Calibration for Off-Road OOD Segmentation.**
+**Benchmarking and Terrain-Conditional Calibration for Off-Road OOD Segmentation**
 
-A leakage-free, multi-dataset benchmark for semantic out-of-distribution (OOD)
-segmentation in off-road navigation, together with an ID-only, terrain-conditional
-operating point (Ours-TCC) for deployment.
+Safe off-road navigation requires detecting out-of-distribution (OOD) regions
+before semantic errors corrupt downstream traversability estimates. Yet off-road
+OOD segmentation lacks a common evaluation protocol, and heterogeneous natural
+terrain often produces widespread false positives. We introduce **OffRoad-OOD**,
+to our knowledge the first benchmark to evaluate semantic OOD segmentation
+consistently across four public off-road datasets. It harmonizes ID/OOD
+ontologies, controls spatial leakage, and compares representative detector
+families under a common protocol. Across the evaluated models, differences
+between per-pixel and mask-based families exceed those among pixel-wise scoring
+rules: per-pixel methods respond strongly to normal terrain, whereas mask-based
+models produce more coherent anomaly regions. Closed-set mIoU does not reliably
+predict this behavior. **Ours-Score** combines mask and feature-distance evidence
+using fixed, ID-standardized equal weighting, improving mean AP over its MSP-M2F
+base from 0.727 to 0.772. For deployment, **Terrain-Conditional Conformal (TCC)**
+calibration estimates terrain-specific mask-score quantiles from validation ID
+pixels alone. At a target ID false-positive rate of 5%, TCC obtains test ID-FPRs
+of 2.7–5.7% while recovering 68–91% of OOD pixels, and reduces the worst-class
+false-positive rate relative to global ID calibration on three of four datasets.
+The fused score ranks anomalies better on average but transfers less reliably
+under calibration, showing that ranking quality and threshold transfer require
+separate evaluation.
 
-This repository accompanies our ICRA submission. It provides the benchmark
-construction (ID/OOD ontology and leakage-free splits over four public off-road
-datasets), the full evaluation suite, and all baselines and our method. Every
-script writes its results as JSON to `results/`, reproducing the numbers reported
-in the paper. (The plotting/LaTeX code that renders those numbers into the
-paper's figures and tables is not part of this release.)
-
-> **Anonymized for double-blind review.** No author-, institution-, or
-> path-identifying information is included. Paths are resolved from the
-> `OFFROAD_OOD_ROOT` environment variable (default: current directory).
-
-> **We do not redistribute raw images.** OffRoad-OOD is a *task, protocol, and
-> evaluation layer* on top of four existing public datasets. We release the
-> derived artifacts (ontology mapping, split files, code); you download the
-> images from their original sources (below). See [`DATASHEET.md`](DATASHEET.md)
-> for the full benchmark-construction documentation.
+This repository provides the benchmark construction (ID/OOD ontology and
+leakage-free splits over the four datasets), the full evaluation suite, and all
+baselines and our method. Every script writes its results as JSON to `results/`,
+reproducing the numbers reported in the paper. The plotting code that renders
+those numbers into the paper's figures and tables is not part of this release.
 
 ---
 
 ## Method overview
 
-<!-- Placeholder: replace docs/method_overview.png with the final method figure (keep the same path). -->
 ![OffRoad-OOD method overview](docs/method_overview.png)
 
-Both configurations share one front end — a Mask2Former mask-transformer
-(fine-tuned on ID) and a frozen DINOv2 encoder with an ID feature bank.
-Mask2Former yields the mask anomaly score `s_M2F` and the predicted terrain
-class `ĉ`; DINOv2 yields the feature-distance score `s_cDNP`.
+*Separate deployment and ranking paths. The upper path applies
+terrain-conditional ID quantiles to the original MSP-M2F score using the
+predicted ID class, producing the **Ours-TCC** binary OOD mask. The lower path
+combines ID-standardized MSP-M2F and cDNP scores with fixed equal weights to
+produce the continuous **Ours-Score**. Heatmaps are normalized independently for
+visualization; lighter colors indicate larger anomaly scores, and red denotes
+predicted OOD pixels.*
 
-- **Ours-Score (ranking).** The fixed equal-weight fusion
-  `z_ID(s_M2F) + z_ID(s_cDNP)` (β=1, standardized on validation-ID pixels only) —
-  a threshold-free anomaly score, produced by `ours_score_final.py`.
-- **Ours-TCC (deployment).** A terrain-conditional, ID-only finite-sample
-  conformal threshold applied to the mask score: flag a pixel when
-  `s_M2F > τ_ĉ`, with `τ_ĉ` calibrated per predicted terrain class at a target
-  FPR α — produced by `tcc_fused.py`.
-
-Ranking and calibration are deliberately separated: the feature cue improves the
-*ranking* score, while the *operating point* is set on the mask score alone,
-which transfers better under site shift.
+**Ours-Score** (ranking) is produced by `ours_score_final.py`; **Ours-TCC**
+(deployment) by `tcc_fused.py`. Ranking and calibration are evaluated separately:
+the feature cue improves the ranking score, while the operating point is set on
+the mask score alone, which transfers more reliably under site shift.
 
 ---
 
@@ -64,8 +66,12 @@ cached scores.
 
 ## 2. Get the data
 
-Download each dataset from its original source into `data/` (respecting each
-license — see `DATASHEET.md` §Licenses):
+OffRoad-OOD is a task, protocol, and evaluation layer on top of four existing
+public datasets: this repository releases the derived artifacts (ontology
+mapping, split files, code), not the raw images. Download each dataset from its
+original source into `data/` (respecting each license — see `DATASHEET.md`
+§Licenses); see [`DATASHEET.md`](DATASHEET.md) for the full
+benchmark-construction documentation.
 
 | Dataset | Source | License |
 |---|---|---|
@@ -116,7 +122,7 @@ python offroad_ood/ours_score_final.py   --dataset all          # Ours-Score (be
 python offroad_ood/method_final.py       --dataset goose        # (ablation) OOD-tuned beta, oracle upper bound
 python offroad_ood/conformal_headroom.py --dataset goose        # (reference) percentile-quantile conformal
 
-# (f) Diagnostic analyses behind Section V (why off-road OOD is hard)
+# (f) Diagnostic analyses (why off-road OOD is hard)
 python offroad_ood/analyze_fp_all.py     --dataset goose   # terrain false-positive breakdown
 python offroad_ood/veg_fprate.py                           # vegetation vs non-veg false-positive rate
 python offroad_ood/veg_featdist.py                         # vegetation vs anomaly feature distance
@@ -170,11 +176,11 @@ offroad_ood/        All code (flat modules; run with PYTHONPATH=offroad_ood):
   <baselines/method>    See §3
   run_eval.py           Method-agnostic harness to benchmark your own detector
 docs/               Extended documentation
-  method_overview.png   Method figure shown above (replaceable placeholder)
+  method_overview.png   Method figure shown above
   RUNNING_AT_SCALE.md   Notes for running the suite on a cluster
 DATASHEET.md        Full benchmark-construction datasheet
 ```
 
 ## 5. Citation
 
-Anonymized for review. Citation info will be added upon acceptance.
+Citation information will be added upon publication.
