@@ -27,8 +27,7 @@ separate evaluation.
 This repository provides the benchmark construction (ID/OOD ontology and
 leakage-free splits over the four datasets), the full evaluation suite, and all
 baselines and our method. Every script writes its results as JSON to `results/`,
-reproducing the numbers reported in the paper. The plotting code that renders
-those numbers into the paper's figures and tables is not part of this release.
+reproducing the numbers reported in the paper.
 
 ---
 
@@ -69,9 +68,9 @@ cached scores.
 OffRoad-OOD is a task, protocol, and evaluation layer on top of four existing
 public datasets: this repository releases the derived artifacts (ontology
 mapping, split files, code), not the raw images. Download each dataset from its
-original source into `data/` (respecting each license — see `DATASHEET.md`
-§Licenses); see [`DATASHEET.md`](DATASHEET.md) for the full
-benchmark-construction documentation.
+original source into `data/`, respecting each license. See
+[`DATASHEET.md`](DATASHEET.md) for licenses and the full benchmark-construction
+documentation.
 
 | Dataset | Source | License |
 |---|---|---|
