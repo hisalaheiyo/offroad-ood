@@ -1,0 +1,6 @@
+{
+  "_comment": "RUGD official scene-level split (leakage-free by construction; scenes are disjoint). Used both for the protocol-matched prior-method comparison (same split) and for our benchmark.",
+  "train": ["park-2", "trail", "trail-3", "trail-4", "trail-6", "trail-9", "trail-10", "trail-11", "trail-12", "trail-13", "trail-14", "trail-15", "creek"],
+  "val": ["park-8", "trail-7"],
+  "test": ["park-1", "trail-5", "village"]
+}

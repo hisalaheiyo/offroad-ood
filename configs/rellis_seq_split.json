@@ -1,0 +1,9 @@
+{
+  "_comment": "RELLIS-3D leakage-free sequence-level split (the official split leaks badly: sequence 00000 appears in train/val/test alike). The 5 sequences are assigned disjointly. Both test and val are rich in component-OOD (vehicle/building/person).",
+  "train": ["00001", "00002", "00004"],
+  "val": ["00003"],
+  "test": ["00000"],
+  "frame_counts": {"train": 4134, "val": 900, "test": 1200},
+  "ood_frame_pct": {"00000": 55, "00001": 52, "00002": 81, "00003": 67, "00004": 40},
+  "comp_ood_frame_pct": {"00000": 55, "00001": 7, "00002": 59, "00003": 64, "00004": 0}
+}

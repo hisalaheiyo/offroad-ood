@@ -1,0 +1,6 @@
+{
+  "_comment": "S1 wilderness-only diagnostic: train+test are both wilderness sites (urban campus / neubiberg / neuperlach excluded). Contrasted with v1 (mixed train -> wilderness test) to separate domain shift from intrinsic difficulty.",
+  "train": ["aying", "garching", "flight", "hoehenkirchner", "hohenbrunn"],
+  "val": ["putzbrunn"],
+  "test": ["siegertsbrunn", "solalinden"]
+}

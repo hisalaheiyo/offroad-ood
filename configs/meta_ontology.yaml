@@ -1,0 +1,180 @@
+# OffRoad-Anomaly Benchmark — Meta-ontology mapping (single source of truth)
+# Protocol: see SPLIT_PROTOCOL.md v3. Each dataset's native class -> meta_role.
+# meta_role values:
+#   id_terrain | id_vegetation | id_sky | id_water        (ID, expected natural background)
+#   ood_tier1  (salient foreign: vehicle/structure/human)
+#   ood_tier2  (small artifacts: object/debris/sign)
+#   ood_tier3  (animal)
+#   ignore     (not counted in training or testing: ego/void/urban road infrastructure)
+#   borderline (defaults to ID-natural, pending confusion-matrix adjudication; marked by default_role)
+# Training: id_* participate in loss; ood_*/borderline (if judged OOD) -> ignore_index; ignore -> ignore_index
+# Testing: ood_* (+borderline if judged OOD) = anomaly positive class; id_* = negative class; ignore not counted
+
+meta_roles: [id_terrain, id_vegetation, id_sky, id_water, ood_tier1, ood_tier2, ood_tier3, ignore, borderline]
+primary_rank_metric: component_f1        # see protocol v3 §7.5-8
+min_support: { pixels: 500, images: 5 }  # per-class listing threshold, see v3-6
+
+# ---------------------------------------------------------------------------
+GOOSE:                       # 64 classes, authoritative source: official goose_label_mapping.csv (class names verified)
+  source_ontology: 64-class
+  classes:
+    # --- ID: natural terrain ---
+    asphalt: {role: borderline, default_role: id_terrain, note: "man-made surface but commonly traversable ground; defaults to ID"}
+    cobble: {role: id_terrain}
+    gravel: {role: id_terrain}
+    soil: {role: id_terrain}
+    snow: {role: id_terrain, note: "seasonal, can serve as a domain-shift easter egg"}
+    # --- ID: vegetation ---
+    bush: {role: id_vegetation}
+    crops: {role: id_vegetation}
+    forest: {role: id_vegetation}
+    hedge: {role: id_vegetation}
+    high_grass: {role: id_vegetation}
+    leaves: {role: id_vegetation}
+    low_grass: {role: id_vegetation}
+    moss: {role: id_vegetation}
+    scenery_vegetation: {role: id_vegetation}
+    tree_crown: {role: id_vegetation}
+    tree_trunk: {role: id_vegetation}
+    tree_root: {role: id_vegetation}
+    # --- ID: sky/water ---
+    sky: {role: id_sky}
+    water: {role: id_water, note: "can be switched to a natural hazard under the hazard-lens, see protocol §6.5"}
+    # --- OOD Tier-1: salient foreign (vehicle/structure/human) ---
+    bicycle: {role: ood_tier1, group: vehicle}
+    bus: {role: ood_tier1, group: vehicle}
+    car: {role: ood_tier1, group: vehicle}
+    caravan: {role: ood_tier1, group: vehicle}
+    heavy_machinery: {role: ood_tier1, group: vehicle}
+    kick_scooter: {role: ood_tier1, group: vehicle}
+    motorcycle: {role: ood_tier1, group: vehicle}
+    on_rails: {role: ood_tier1, group: vehicle}
+    trailer: {role: ood_tier1, group: vehicle}
+    truck: {role: ood_tier1, group: vehicle}
+    military_vehicle: {role: ood_tier1, group: vehicle}   # gap-check addition (present in csv, GOOSE military off-road)
+    bridge: {role: ood_tier1, group: structure}
+    building: {role: ood_tier1, group: structure}
+    container: {role: ood_tier1, group: structure}
+    fence: {role: ood_tier1, group: structure}
+    guard_rail: {role: ood_tier1, group: structure}
+    tunnel: {role: ood_tier1, group: structure}
+    wall: {role: ood_tier1, group: structure}
+    wire: {role: ood_tier1, group: structure}
+    person: {role: ood_tier1, group: human}   # v3 fix: person moved into Tier-1 (matching competitors)
+    rider: {role: ood_tier1, group: human}
+    # --- OOD Tier-2: small artifacts (object/debris/sign) ---
+    obstacle: {role: ood_tier2, group: object, catch_all: true, note: "GOOSE generic-obstacle heterogeneous class, similar to WildScenes Other-object, can be dropped in sensitivity analysis"}
+    pole: {role: ood_tier2, group: object}
+    street_light: {role: ood_tier2, group: object}
+    barrel: {role: ood_tier2, group: object}
+    pipe: {role: ood_tier2, group: object}
+    debris: {role: ood_tier2, group: object, note: "man-made debris; distinguished from natural rubble"}
+    barrier_tape: {role: ood_tier2, group: sign}
+    misc_sign: {role: ood_tier2, group: sign}
+    traffic_cone: {role: ood_tier2, group: sign}
+    traffic_light: {role: ood_tier2, group: sign}
+    traffic_sign: {role: ood_tier2, group: sign}
+    road_block: {role: ood_tier2, group: sign}
+    boom_barrier: {role: ood_tier2, group: sign}
+    # --- OOD Tier-3: animal ---
+    animal: {role: ood_tier3, group: animal}
+    # --- borderline (confusion-matrix adjudication) ---
+    rock: {role: borderline, default_role: id_terrain, note: "natural rock (ID) vs hard obstacle (OOD); can be OOD under the hazard-lens"}
+    # --- ignore: void + urban road infrastructure ---
+    ego_vehicle: {role: ignore}
+    undefined: {role: ignore}
+    outlier: {role: ignore, note: "if the labeling_policy confirms = a genuine anomalous object, extract it as a genuine open-world test set (protocol §v2-6)"}
+    bikeway: {role: ignore, group: urban_road}
+    curb: {role: ignore, group: urban_road}
+    pedestrian_crossing: {role: ignore, group: urban_road}
+    rail_track: {role: ignore, group: urban_road}
+    road_marking: {role: ignore, group: urban_road}
+    sidewalk: {role: ignore, group: urban_road}
+
+# ---------------------------------------------------------------------------
+WildScenes:                  # 18 real classes (index=label_key, official indexLabel encoding); no animal/human -> only Tier-1/2
+  source_ontology: 18-class-index   # key=indexLabel integer value
+  tier_coverage: [tier1, tier2]
+  ignore_index: 255
+  classes_by_index:            # index: {name, role, ...}
+    0:  {name: unlabelled,        role: ignore}
+    1:  {name: asphalt/concrete,  role: ignore,   note: "man-made surface, rare in forest, kept as ignore to preserve ID wilderness purity"}
+    2:  {name: dirt,              role: id_terrain}
+    3:  {name: mud,               role: id_terrain}
+    4:  {name: water,             role: id_water}
+    5:  {name: gravel,            role: id_terrain}
+    6:  {name: other-terrain,     role: id_terrain, catch_all: true}
+    7:  {name: tree-trunk,        role: id_vegetation}
+    8:  {name: tree-foliage,      role: id_vegetation}
+    9:  {name: bush,              role: id_vegetation}
+    10: {name: fence,             role: ood_tier1, group: structure}
+    11: {name: other-structure,   role: ood_tier1, group: structure}
+    12: {name: pole,              role: ood_tier2, group: object}
+    13: {name: vehicle,           role: ood_tier1, group: vehicle}
+    14: {name: rock,              role: borderline, default_role: id_terrain}
+    15: {name: log,               role: id_vegetation, note: "natural log, treated as ID same as GOOSE"}
+    16: {name: other-object,      role: ood_tier2, group: object, catch_all: true}
+    17: {name: sky,               role: id_sky}
+    18: {name: grass,             role: id_vegetation}
+
+# ---------------------------------------------------------------------------
+# RUGD / RELLIS-3D: incorporate competitors, pending complete class mapping + additional reproduction of the Anomalies-by-Synthesis split
+#   competitor_split (RUGD/RELLIS): OOD = {vehicle, building, person}, everything else natural = ID
+#   used for a head-to-head comparison with Anomalies-by-Synthesis; also uses this meta-ontology for a standardized split
+# RUGD: 25 color-coded classes (RGB, colormap see data/rugd/RUGD_annotations/RUGD_annotation-colormap.txt). The official scene-level split is inherently leakage-free.
+#   competitor_split: exactly matches the Anomalies-by-Synthesis (2505.22805) protocol — OOD=8 classes {water,vehicle,object,building,bicycle,person,bridge,picnic-table},
+#   ID=16 classes {dirt,sand,grass,tree,pole,sky,asphalt,gravel,mulch,rock-bed,log,fence,bush,sign,rock,concrete}, ignore=void. (their AUC-PR 0.709/F₁*0.599)
+RUGD:
+  competitor_split: {ood: [water, vehicle, object, building, bicycle, person, bridge, picnic-table]}
+  classes_by_index:
+    0:  {name: void,        role: ignore}
+    1:  {name: dirt,        role: id_terrain}
+    2:  {name: sand,        role: id_terrain}
+    3:  {name: grass,       role: id_vegetation}
+    4:  {name: tree,        role: id_vegetation}
+    5:  {name: pole,        role: ood_tier2}
+    6:  {name: water,       role: id_water}
+    7:  {name: sky,         role: id_sky}
+    8:  {name: vehicle,     role: ood_tier1}
+    9:  {name: object,      role: ignore, catch_all: true}
+    10: {name: asphalt,     role: id_terrain}
+    11: {name: gravel,      role: id_terrain}
+    12: {name: building,    role: ood_tier1}
+    13: {name: mulch,       role: id_terrain}
+    14: {name: rock-bed,    role: id_terrain}
+    15: {name: log,         role: borderline, default_role: id_vegetation}
+    16: {name: bicycle,     role: ood_tier1}
+    17: {name: person,      role: ood_tier1}
+    18: {name: fence,       role: ood_tier2}
+    19: {name: bush,        role: id_vegetation}
+    20: {name: sign,        role: ood_tier2}
+    21: {name: rock,        role: id_terrain}
+    22: {name: bridge,      role: ood_tier1}
+    23: {name: concrete,    role: id_terrain}
+    24: {name: picnic-table, role: ood_tier1}
+
+# RELLIS-3D: 19 classes (sparse ids, see the authoritative SalsaNext rellis.yaml mapping). Natural terrain/vegetation/water/sky=ID; discrete man-made objects=OOD.
+#   competitor_split: OOD only = {vehicle,building,person} (matching Anomalies-by-Synthesis); the main benchmark uses the full OOD set below.
+RELLIS-3D:
+  competitor_split: {ood: [vehicle, building, person]}
+  classes_by_index:
+    0:  {name: void,     role: ignore}
+    1:  {name: dirt,     role: id_terrain}
+    3:  {name: grass,    role: id_vegetation}
+    4:  {name: tree,     role: id_vegetation}
+    5:  {name: pole,     role: ood_tier2}
+    6:  {name: water,    role: id_water}
+    7:  {name: sky,      role: id_sky}
+    8:  {name: vehicle,  role: ood_tier1}
+    9:  {name: object,   role: ignore, catch_all: true}
+    10: {name: asphalt,  role: id_terrain}
+    12: {name: building, role: ood_tier1}
+    15: {name: log,      role: borderline, default_role: id_vegetation}
+    17: {name: person,   role: ood_tier1}
+    18: {name: fence,    role: ood_tier2}
+    19: {name: bush,     role: id_vegetation}
+    23: {name: concrete, role: id_terrain}
+    27: {name: barrier,  role: ood_tier1}
+    31: {name: puddle,   role: id_water}
+    33: {name: mud,      role: id_terrain}
+    34: {name: rubble,   role: ignore, catch_all: true}
